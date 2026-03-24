@@ -2,13 +2,13 @@
 #include <iostream>
 using namespace std;
 
-string RPCEngine::buildBlockNumberReq() {
+string Rpcengine::buildBlockNumberReq() {
     // Minified JSON payload to query the latest block number.
     // "id": 1 is arbitrary but required by the JSON-RPC 2.0 specification.
     return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}";
 }
 
-std::string RPCEngine::extractResults(const std::string& jsonResponse) {
+std::string Rpcengine::extractResults(const std::string& jsonResponse) {
     // A standard successful response looks like:
     // {"jsonrpc":"2.0","id":1,"result":"0x1b4"}
     
