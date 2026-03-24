@@ -1,6 +1,8 @@
-#include "../include/RpcEngine.h"
+#include "../include/rpcengine.h"
+#include <iostream>
+using namespace std;
 
-std::string RPCEngine::buildBlockNumberReq() {
+string RPCEngine::buildBlockNumberReq() {
     // Minified JSON payload to query the latest block number.
     // "id": 1 is arbitrary but required by the JSON-RPC 2.0 specification.
     return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}";
@@ -12,6 +14,7 @@ std::string RPCEngine::extractResults(const std::string& jsonResponse) {
     
     std::string targetKey = "\"result\":\"";
     size_t startPos = jsonResponse.find(targetKey);
+    cout << "hello world from rpcengine.cpp";
     
     // If the "result" key is missing, the RPC call failed (e.g., rate limit or bad endpoint)
     if (startPos == std::string::npos) {
