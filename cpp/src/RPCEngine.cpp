@@ -1,4 +1,4 @@
-#include "../include/RPCEngine.h"
+#include "../include/RpcEngine.h"
 
 std::string RPCEngine::buildBlockNumberReq() {
     // Minified JSON payload to query the latest block number.
