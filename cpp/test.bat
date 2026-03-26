@@ -1,10 +1,9 @@
 @echo off
 echo [*] Compiling dC2 Poller...
 
-:: The exact command that worked for you goes here
-g++ .\src\main.cpp .\src\rpcengine.cpp -static -static-libgcc -static-libstdc++ -o poller.exe
+:: Added HTTPClient.cpp and -lwinhttp
+g++ src/main.cpp src/rpcengine.cpp src/HTTPClient.cpp -I include -static -static-libgcc -static-libstdc++ -lwinhttp -o poller.exe
 
-:: Check if the compilation failed
 if %errorlevel% neq 0 (
     echo [-] Build failed. Check your syntax.
     exit /b %errorlevel%
