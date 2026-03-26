@@ -3,4 +3,6 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+# Add this block to route traffic to your RPC node
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
