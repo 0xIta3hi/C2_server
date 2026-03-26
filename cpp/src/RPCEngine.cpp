@@ -2,11 +2,10 @@
 #include <iostream>
 using namespace std;
 
-string Rpcengine::buildBlockNumberReq() {
-    // Minified JSON payload to query the latest block number.
-    // "id": 1 is arbitrary but required by the JSON-RPC 2.0 specification.
-    return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}";
-}
+string Rpcengine::buildTaskQueryReq() {
+    // Queries the exact memory slot (0x0) of your deployed Hub contract on Sepolia
+    return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getStorageAt\",\"params\":[\"0x20568FaA965AAf02E8c68359FaE2c57e81Ba31de\", \"0x0\", \"latest\"],\"id\":1}";
+}   
 
 std::string Rpcengine::extractResults(const std::string& jsonResponse) {
     // A standard successful response looks like:

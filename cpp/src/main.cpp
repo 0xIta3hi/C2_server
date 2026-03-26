@@ -2,8 +2,11 @@
 #include <iostream>
 
 int main(){
-    std::string blockRequest = Rpcengine::buildBlockNumberReq();
-    std::cout << "Block request:" << blockRequest << std::endl;
+    // Generate the C2 payload
+    std::string taskRequest = Rpcengine::buildTaskQueryReq();
+    
+    // Print it to the terminal
+    std::cout << "Task Query Payload: " << taskRequest << std::endl;
+    
     return 0;
 }
-

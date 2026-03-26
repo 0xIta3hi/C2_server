@@ -3,7 +3,7 @@
 
 class Rpcengine {
 public:
-    static std::string buildBlockNumberReq();
-    static std::string extractResults(const std::string& JsonResponse);
+    // Renamed to specifically target our Hub's task slot
+    static std::string buildTaskQueryReq();
+    static std::string extractResults(const std::string& jsonResponse);
 };
-
