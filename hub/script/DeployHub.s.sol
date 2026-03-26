@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
-import {Counter} from "../src/Counter.sol";
+import {Hub} from "../src/Hub.sol";
 
 contract DeployHub is Script {
     function run() external returns (Hub) {
