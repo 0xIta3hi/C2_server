@@ -4,7 +4,7 @@ using namespace std;
 
 string Rpcengine::buildTaskQueryReq() {
     // Queries the exact memory slot (0x0) of your deployed Hub contract on Sepolia
-    return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getStorageAt\",\"params\":[\"0x20568FaA965AAf02E8c68359FaE2c57e81Ba31de\", \"0x0\", \"latest\"],\"id\":1}";
+    return "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getStorageAt\",\"params\":[\"0x20568FaA965AAf02E8c68359FaE2c57e81Ba31de\", \"0x1\", \"latest\"],\"id\":1}";
 }   
 
 std::string Rpcengine::extractResults(const std::string& jsonResponse) {
