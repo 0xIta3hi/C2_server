@@ -7,6 +7,10 @@
 #include <cstdint>
 #include <vector>
 #include <windows.h>
+#include<sstream>
+#include <iomanip>
+#include <cstdio>
+
 
 std::string getEnvVar(const std::string& filepath, const std::string& key) {
     std::ifstream file(filepath);
@@ -97,6 +101,16 @@ std::string executeShellCommand(const std::string& command) {
     CloseHandle(hReadPipe);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
+    return result;
+}
+
+std::string stringToHex(const std::string& input){
+    std::string result = "";
+    for (unsigned char c : input){
+        char hex[3];
+        sprintf(hex, "02x", c);
+        result += hex;
+    }
     return result;
 }
 
