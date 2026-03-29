@@ -13,7 +13,6 @@ std::string Rpcengine::extractResults(const std::string& jsonResponse) {
     
     std::string targetKey = "\"result\":\"";
     size_t startPos = jsonResponse.find(targetKey);
-    cout << "hello world from rpcengine.cpp";
     
     // If the "result" key is missing, the RPC call failed (e.g., rate limit or bad endpoint)
     if (startPos == std::string::npos) {

