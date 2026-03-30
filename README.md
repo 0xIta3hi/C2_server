@@ -1,231 +1,131 @@
-# Onchain C2 Server
-
-An Ethereum-based Command & Control (C2) server that leverages smart contracts for decentralized command execution and response collection. This innovative approach uses blockchain state to store commands and receive agent responses, making it resilient to traditional infrastructure takedowns.
+# Decentralized Web3 Command & Control (dC2)
 
 ## Overview
+dC2 is an asynchronous, decentralized Command and Control (C2) infrastructure that leverages the Ethereum Virtual Machine (EVM) state for tasking and JSON-RPC `eth_call` smuggling for data exfiltration. The architecture eliminates the need for centralized C2 servers by utilizing enterprise Web3 infrastructure (Alchemy) as a high-reputation domain front.
 
-This onchain C2 server pivots from traditional socket-based communication to Ethereum smart contracts, providing:
-- **Decentralized Command Distribution**: Commands stored in smart contract state
-- **Cryptographic Agent Authentication**: Verify agents via blockchain signatures
-- **Immutable Audit Trail**: All commands and responses recorded on-chain
-- **Distributed Infrastructure**: No central server to take down
+The execution implant is written in native C++ utilizing the Win32 API for evasive Inter-Process Communication (IPC) and memory-safe process execution.
 
-### How It Works
+## Architecture
 
-1. **Operator**: Posts commands to a smart contract
-2. **Agents**: Monitor the blockchain and execute assigned commands
-3. **Agents**: Send responses back to the smart contract
-4. **Operator**: Retrieves responses and manages sessions
+The framework consists of three primary components:
 
-## Features
+1.  **EVM Smart Contract (`Hub.sol`):** Acts as the immutable tasking router. Commands are stored as hex-encoded bytes in the contract's state trie (Storage Slot `0x1`).
+2.  **C++ Windows Implant:** A lightweight polling agent that queries the EVM via JSON-RPC over WinHTTP, decodes EVM memory padding, executes commands via Win32 Anonymous Pipes, and exfiltrates `stdout` via gas-less `eth_call` requests.
+3.  **Python Operator Terminal:** A `web3.py` script that handles ECDSA transaction signing, gas estimation, and payload broadcasting to the Sepolia testnet.
 
-- 🔗 Ethereum smart contract-based C2 infrastructure
-- 🔐 Cryptographic authentication and verification
-- 📊 Decentralized command/response storage
-- 🔍 Immutable command history and audit trail
-- 💰 Gas-efficient contract interactions
-- 🎯 Multi-agent session management
-- 🌐 Cross-platform client support
-- ⛓️ Web3.py integration for blockchain interaction
-
-## Requirements
-
-- Python 3.8+
-- Web3.py library
-- Ethereum wallet with testnet/mainnet ETH
-- Solidity compiler (for contract deployment)
-- Infura or local Ethereum node RPC endpoint
-
-## Installation
-
-```bash
-git clone <repository-url>
-cd C2_server
-pip install web3
+## Directory Structure
+```text
+dC2/
+├── hub/
+│   ├── src/Hub.sol          # Deployed EVM Smart Contract
+│   ├── operator.py          # Operator tasking script
+│   └── .env                 # Node URLs and ECDSA Private Keys
+└── cpp/
+    ├── include/
+    │   ├── HTTPClient.h     # WinHTTP definitions
+    │   └── rpcengine.h      # JSON-RPC payload constructors
+    └── src/
+        ├── main.cpp         # Polling loop, EVM decoder, and execution engine
+        ├── HTTPClient.cpp   # WinHTTP implementation
+        └── rpcengine.cpp    # JSON-RPC parsing
 ```
 
-### Smart Contract Deployment
 
-1. Deploy the C2 smart contract to Ethereum:
+## Technical Implementation
 
-```bash
-python deploy_contract.py --network goerli --private-key <your-private-key>
-```
+### 1. EVM State Tasking & Decoding
 
-2. Note the contract address for client configuration
+Commands are pushed to the blockchain as hex strings. Because the EVM implements Short String Optimization for `bytes` arrays under 32 bytes, the data is left-aligned and zero-padded.
 
-### Configuration
+- The implant queries the storage slot via `eth_getStorageAt`.
+    
+- The `decodeEVMString` function strips the `0x` prefix and dynamically parses the 32-byte EVM word, breaking the loop upon encountering the `00` zero-padding to prevent passing garbage memory to the Win32 execution engine.
+    
 
-Update `config.py` with your deployment details:
+### 2. Execution Engine (Win32 IPC)
 
-```python
-ETHEREUM_RPC = "https://goerli.infura.io/v3/YOUR-PROJECT-ID"
-CONTRACT_ADDRESS = "0x..."
-CONTRACT_ABI = [...]  # From contract compilation
-OPERATOR_PRIVATE_KEY = "0x..."
-OPERATOR_ADDRESS = "0x..."
-```
+The implant executes arbitrary commands without relying on the C-runtime `system()` or `popen()` functions to maintain OPSEC (preventing visible `cmd.exe` windows) and to capture `stdout` natively.
 
-## Usage
+- **Pipe Initialization:** Utilizes `CreatePipe` to establish an anonymous IPC channel. `SetHandleInformation` is called with `HANDLE_FLAG_INHERIT = 0` on the Read pipe to prevent deadlocks caused by the child process inheriting the read handle.
+    
+- **Process Creation:** `STARTUPINFOA` is configured with `STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW` and `SW_HIDE`. The `hStdOutput` and `hStdError` handles are routed to the Write end of the anonymous pipe.
+    
+- **Memory Safety:** The command string is copied into a mutable `std::vector<char>` buffer before being passed to `CreateProcessA`, preventing Access Violations if the OS attempts to modify the command line argument string.
+    
+- **Data Extraction:** The Write handle is closed in the parent process, and a `ReadFile` loop blocks until the pipe buffer is drained, appending the raw bytes into a C++ `std::string`.
+    
 
-### Operator: Posting a Command
+### 3. Exfiltration (`eth_call` Smuggling)
 
-```python
-from c2_operator import C2Operator
+To exfiltrate data without packaging ECDSA signing libraries (e.g., `libsecp256k1`) into the C++ binary or paying transaction gas, the implant utilizes `eth_call` smuggling.
 
-operator = C2Operator()
+- The `stdout` string is converted to a continuous hex string.
+    
+- The implant wraps the hex data into the `"data"` parameter of an `eth_call` JSON-RPC request targeting the smart contract.
+    
+- The EVM reverts the call (as the data does not match a valid function selector), but the Web3 RPC Gateway (Alchemy) logs the full request payload.
+    
+- Operators retrieve the exfiltrated `stdout` by monitoring the Alchemy RPC logs.
+    
 
-# Post a command for agents
-operator.post_command(
-    agent_id=1,
-    command="whoami",
-    gas_price="20 gwei"
-)
+## Setup & Usage
 
-print("Command posted to blockchain with tx hash: 0x...")
-```
+### Prerequisites
 
-### Agent: Executing Commands
+- Foundry (for smart contract deployment)
+    
+- Python 3.11+ (for Operator Terminal)
+    
+- MSVC / MinGW (for compiling the C++ implant)
+    
+- Alchemy Account (RPC Node)
+    
 
-```bash
-python agent.py --agent-id 1 --private-key 0x...
-```
+### 1. Configure Environment
 
-The agent will continuously:
-1. Monitor the blockchain for new commands
-2. Execute assigned commands locally
-3. Submit responses back to the smart contract
+Populate the `dC2/hub/.env` file:
 
-### Operator: Retrieving Responses
-
-```python
-# Get all responses for an agent
-responses = operator.get_agent_responses(agent_id=1)
-
-for response in responses:
-    print(f"Timestamp: {response['timestamp']}")
-    print(f"Command: {response['command']}")
-    print(f"Output: {response['output']}")
-```
-
-## Example Workflow
+Code snippet
 
 ```
-Operator Posts Command:
-- Navigate to blockchain C2 interface
-- Enter command: "ipconfig"
-- Select target agent: Agent-1 (0x1234...)
-- Confirm transaction
-
-Agent Monitors & Executes:
-- Agent 1 detects new command in smart contract
-- Executes: ipconfig
-- Generates output
-- Signs response with private key
-- Submits to smart contract
-
-Operator Retrieves Response:
-- Queries smart contract for Agent-1 responses
-- Validates signature
-- Displays output in operator console
+SEPOLIA_RPC_URL="[https://eth-sepolia.g.alchemy.com/v2/](https://eth-sepolia.g.alchemy.com/v2/)<YOUR_API_KEY>"
+ALCHEMY_API_KEY="<YOUR_API_KEY>"
+PRIVATE_KEY="<YOUR_ECDSA_PRIVATE_KEY>"
 ```
 
-## Project Structure
+### 2. Deploy Smart Contract
+
+Bash
 
 ```
-C2_server/
-├── contracts/
-│   └── C2Server.sol          # Main smart contract
-├── agent.py                  # Agent implementation
-├── c2_operator.py            # Operator implementation
-├── config.py                 # Configuration file
-├── deploy_contract.py        # Contract deployment script
-├── main.py                   # Original socket-based server (legacy)
-├── client.py                 # Original socket-based client (legacy)
-├── README.md                 # Documentation
-└── LICENSE                   # MIT License
+cd hub
+forge create src/Hub.sol:Hub --rpc-url sepolia --private-key <PRIVATE_KEY>
 ```
 
-## Smart Contract Architecture
+_Update `CONTRACT_ADDRESS` in `operator.py` and `rpcengine.cpp` with the deployed address._
 
-### State Variables
-- `mapping(uint => Command[])` → Commands per agent
-- `mapping(uint => Response[])` → Responses from agents
-- `mapping(address => bool)` → Authorized operators
-- `mapping(address => uint)` → Agent registry
+### 3. Compile and Run Implant
 
-### Key Functions
-- `postCommand()` → Operator posts command on-chain
-- `submitResponse()` → Agent submits command response
-- `getCommands()` → Agent retrieves pending commands
-- `getResponses()` → Operator retrieves agent responses
+DOS
 
-## Security Considerations
-
-### Advantages
-✅ Decentralized - no single point of failure
-✅ Immutable records - commands can't be tampered with
-✅ Cryptographic verification - trust the math, not servers
-✅ Resilient to takedowns - spread across blockchain nodes
-
-### Limitations & Warnings
-⚠️ **On-Chain Visibility**: All commands visible to blockchain observers
-⚠️ **Gas Costs**: Every operation costs ETH
-⚠️ **Transaction Delays**: Depends on block confirmation times
-⚠️ **No Encryption**: Commands visible to network participants
-⚠️ **Immutability**: Can't delete accidentally posted commands
-
-### Recommendations
-- Use end-to-end encryption BEFORE posting commands on-chain
-- Implement command obfuscation techniques
-- Use private/sidechain for sensitive operations
-- Compartmentalize agents by function
-- Monitor gas prices before bulk operations
-- Implement rate limiting on contract functions
-
-## Gas Optimization Tips
-
-```python
-# Batch multiple commands to save gas
-operator.batch_post_commands([
-    ("whoami", agent1),
-    ("ipconfig", agent2),
-    ("dir C:\\", agent3),
-])
-
-# Use calldata for small responses instead of state
-agent.submit_response_calldata(response_hash)
+```
+cd cpp
+g++ src/*.cpp -I include -lwinhttp -o poller.exe
+.\poller.exe
 ```
 
-## Troubleshooting
+### 4. Task the Implant
 
-### Transaction Fails
-- Check sufficient ETH for gas
-- Verify RPC endpoint connectivity
-- Confirm contract address is correct
+From an isolated Python virtual environment:
 
-### Agent Not Receiving Commands
-- Ensure agent is running and monitoring blockchain
-- Check agent's Ethereum address is registered
-- Verify contract events are emitting correctly
+DOS
 
-### Slow Response Times
-- Network congestion - try again in off-peak hours
-- Increase gas price for faster confirmation
-- Use Flashbots for MEV protection
+```
+cd hub
+python -m venv venv
+.\venv\Scripts\activate
+pip install web3 python-dotenv
+python operator.py "whoami"
+```
 
-## Advanced Features
-
-- **Encrypted Payloads**: Asymmetric encryption before posting
-- **Batch Operations**: Multiple commands in single transaction
-- **Agent Groups**: Organize agents into operational teams
-- **Command Scheduling**: Time-locked command execution
-- **Response Aggregation**: Combine responses from multiple agents
-
-## Disclaimer
-
-⚠️ **EDUCATIONAL ONLY**: This onchain C2 is for authorized security testing and educational purposes only. Unauthorized access to computer systems is illegal. The authors assume no liability for misuse.
-
-## License
-
-MIT License - See LICENSE file for details.
+Retrieve the output by monitoring the `eth_call` JSON payloads in your Alchemy Dashboard logs.
